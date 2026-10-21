@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bili Study 学习札记</title><link rel="stylesheet" href="styles.css"></head>
+<body data-surface="panel" data-readmode="original">
+  <header class="topbar">
+    <a class="wordmark" href="app.html" target="_blank" rel="noopener">Bili Study<span>学习札记</span></a>
+    <a class="workspace-entry" href="app.html" target="_blank" rel="noopener">打开工作台</a>
+  </header>
+  <main class="panel-shell">
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    <section class="video-context">
+      <div class="row spread">
+        <span id="videoEyebrow" class="eyebrow">当前视频</span>
+        <label class="sr-only" for="videoPicker">选择已保存视频</label>
+        <select id="videoPicker" hidden></select>
+      </div>
+      <h1 id="videoTitle">从一个好问题开始</h1>
+      <p id="videoMeta" class="muted">打开 B 站视频，读取字幕后开始学习。</p>
+      <div class="context-actions">
+        <button id="readVideo" class="primary">读取当前视频</button>
+      </div>
+    </section>
+    <nav class="tabs" aria-label="视频学习">
+      <button data-panel="transcript" aria-current="page">学习</button>
+      <button data-panel="chat">问答</button>
+      <button data-panel="notes">笔记</button>
+    </nav>
+    <section id="transcript" class="panel-view">
+      <div class="toolbar">
+        <div class="segmented" role="group" aria-label="学习内容的阅读方式">
+          <button data-mode="summary" aria-pressed="false">精读</button>
+          <button data-mode="original" aria-pressed="true">原文</button>
+          <button data-mode="translated" aria-pressed="false">译文</button>
+          <button data-mode="bilingual" aria-pressed="false">双语</button>
+        </div>
+        <button id="exportBilingual" class="quiet">导出</button>
+      </div>
+      <div id="translationActions" class="translation-actions" hidden>
+        <span class="translation-label">翻译为</span>
+        <select id="target" aria-label="目标语言">
+          <option value="zh-CN">中文</option>
+          <option value="en">英文</option>
+        </select>
+        <button id="translate" class="quiet">生成译文</button>
+      </div>
+      <div id="transcriptRows" class="empty">
+        <p>字幕会保留时间点，方便随时回到视频。</p>
+      </div>
+      <div class="summary-block">
+        <div class="summary-heading">
+          <h2>课堂精读</h2>
+          <button id="summarize" class="primary">生成精读</button>
+        </div>
+        <article id="summaryText" class="prose empty">读完字幕后，把重点整理在这里。</article>
+        <div class="summary-actions">
+          <button id="saveVideo" class="secondary">保存到知识库</button>
+        </div>
+        <details>
+          <summary>编辑精读</summary>
+          <label class="sr-only" for="summaryDraft">精读内容</label>
+          <textarea id="summaryDraft" rows="10"></textarea>
+          <button id="saveSummaryDraft" class="quiet">保存编辑</button>
+        </details>
+        <details>
+          <summary>历史版本</summary>
+          <div id="summaryHistory"></div>
+        </details>
+      </div>
+    </section>
+    <section id="chat" class="panel-view" hidden>
+      <div class="row spread">
+        <h2>围绕视频提问</h2>
+        <button id="summarizeChat" class="quiet">整理讨论</button>
+      </div>
+      <p class="muted compact">回答中的来源时间点可以跳回视频核对。</p>
+      <div id="chatMessages" aria-live="polite"></div>
+      <form id="chatForm" class="composer">
+        <label class="sr-only" for="question">你的问题</label>
+        <textarea id="question" rows="3" maxlength="6000" placeholder="这段内容为什么重要？"></textarea>
+        <button type="submit" class="primary">发送问题</button>
+      </form>
+      <details id="discussionDetails">
+        <summary>讨论笔记</summary>
+        <label class="sr-only" for="discussionSummary">编辑讨论笔记</label>
+        <p id="discussionStale" class="muted compact" hidden>讨论有了新内容，可重新整理后保存。</p>
+        <textarea id="discussionSummary" rows="9"></textarea>
+        <div class="actions">
+          <button id="saveDiscussionDraft" class="quiet">保存编辑</button>
+          <button id="saveDiscussion" class="secondary">保存到知识库</button>
+          <button id="exportDiscussion" class="quiet">导出完整对话</button>
+        </div>
+      </details>
+    </section>
+    <section id="notes" class="panel-view" hidden>
+      <h2>我的笔记</h2>
+      <form id="noteForm">
+        <label for="noteText">记录自己的理解</label>
+        <textarea id="noteText" rows="4" maxlength="12000"></textarea>
+        <div class="row note-row">
+          <label for="noteTime">时间点（秒）</label>
+          <input id="noteTime" type="number" min="0" value="0">
+          <button class="primary" type="submit">保存笔记</button>
+        </div>
+      </form>
+      <div id="notesList"></div>
+    </section>
+    <div id="jobStatus" class="queue-summary" aria-live="polite" hidden></div>
+  </main>
+  <script type="module" src="src/ui.js"></script>
+</body></html>

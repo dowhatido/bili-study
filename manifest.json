@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Bili Study · 哔哩学习札记",
+  "version": "0.9.1",
+  "description": "阅读双语字幕，围绕视频提问，整理收藏与学习报告，保存到本地知识库。",
+  "minimum_chrome_version": "116",
+  "permissions": ["sidePanel", "storage", "scripting", "activeTab", "alarms"],
+  "host_permissions": ["https://www.bilibili.com/*", "https://api.bilibili.com/*", "https://*.hdslb.com/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "action": { "default_title": "打开学习札记" },
+  "side_panel": { "default_path": "panel.html" },
+  "options_ui": { "page": "app.html#settings", "open_in_tab": true },
+  "background": { "service_worker": "src/background.js", "type": "module" },
+  "content_scripts": [{
+    "matches": ["https://www.bilibili.com/video/*"],
+    "js": ["src/content.js"],
+    "run_at": "document_idle"
+  }],
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'; base-uri 'self'"}
+}

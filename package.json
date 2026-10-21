@@ -1,0 +1,13 @@
+{
+  "name": "bili-study",
+  "version": "0.9.1",
+  "private": true,
+  "type": "module",
+  "description": "B 站视频学习、收藏整理、对话和本地知识沉淀扩展",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check.mjs",
+    "package": "node scripts/package.mjs",
+    "preview": "node scripts/preview.mjs"
+  }
+}

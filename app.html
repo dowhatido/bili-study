@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bili Study 学习工作台</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-surface="app">
+  <div class="workspace">
+<aside class="sidebar">
+<a class="wordmark" href="#library">Bili Study<span>哔哩学习札记</span>
+</a>
+<nav aria-label="学习工作台">
+<a href="#library">学习库</a>
+<a href="#reports">学习回顾</a>
+<a href="#settings">设置</a>
+</nav>
+<div class="sidebar-foot">资料有来源，回顾有依据。</div>
+</aside>
+  <main class="workspace-main">
+<div id="notice" role="status" aria-live="polite" hidden>
+</div>
+    <section data-page="library">
+<header class="page-heading">
+<div>
+<p class="eyebrow">学习库</p>
+<h1>把正在学的内容收进一处。</h1>
+<p class="muted">视频、收藏和作品共用一套资料记录。继续整理，或打开已经完成的内容。</p>
+</div>
+<button id="toggleSources" class="primary" type="button" aria-expanded="false" aria-controls="sourcePanel">添加内容</button>
+</header>
+<div id="accountInfo" class="muted compact"></div>
+<section id="sourcePanel" class="source-panel" hidden>
+<div class="source-grid">
+<article class="source-block">
+<div class="row spread">
+<h2>收藏夹</h2>
+<button id="syncCollection" class="quiet" type="button">同步收藏与记录</button>
+</div>
+<p class="muted compact">同步后选择需要持续整理的收藏夹。</p>
+<div id="folderList" class="folder-list empty">同步后，这里会列出你的收藏夹。</div>
+<p id="collectionCoverage" class="muted compact"></p>
+<button id="saveFolders" class="quiet" type="button">保存收藏夹选择</button>
+</article>
+<article class="source-block">
+<div class="row spread">
+<h2>UP 主作品</h2>
+<button id="syncCreator" class="quiet" type="button">同步作品</button>
+</div>
+<label for="creatorUrl">空间链接</label>
+<input id="creatorUrl" type="url" placeholder="https://space.bilibili.com/123456" autocomplete="off" spellcheck="false">
+<p id="creatorInfo" class="muted compact">同步后可以逐条整理，或按每轮上限批量整理。</p>
+<div id="creatorList" hidden></div>
+<button id="queueCreator" class="secondary" type="button">整理未处理作品</button>
+</article>
+</div>
+</section>
+<div class="library-toolbar">
+<nav class="section-tabs" aria-label="学习库筛选">
+<button data-library-tab="all" aria-current="page" type="button">全部资料</button>
+<button data-library-tab="processed" type="button">已整理</button>
+<button data-library-tab="pending" type="button">待整理</button>
+<button data-library-tab="jobs" type="button">任务</button>
+</nav>
+<label class="sr-only" for="searchVideos">搜索资料</label>
+<input id="searchVideos" type="search" placeholder="搜索视频标题">
+</div>
+<div id="queueOverview" class="queue-overview" hidden></div>
+<section class="library-panel" data-library-panel="data">
+<div id="videoLibrary" class="empty">还没有视频资料。点击“添加内容”，从收藏夹或 UP 主作品开始。</div>
+</section>
+<section class="library-panel" data-library-panel="jobs" hidden>
+<div id="allJobs" class="empty">暂无处理任务。</div>
+</section>
+</section>
+    <section data-page="reports" hidden>
+<header class="page-heading">
+<div>
+<p class="eyebrow">学习回顾</p>
+<h1>看见兴趣留下的线索。</h1>
+<p class="muted">从真实观看与收藏记录中，整理值得继续探索的内容。</p>
+</div>
+<div class="actions">
+<button id="dailyReport" class="secondary">生成日报</button>
+<button id="weeklyReport" class="primary">生成周报</button>
+</div>
+</header>
+<div id="reportList" class="empty">同步记录后，生成第一份学习回顾。</div>
+<article id="reportBody" class="prose" hidden>
+</article>
+<div id="reportActions" class="actions" hidden>
+<button id="exportReport" class="quiet">导出 Markdown</button>
+<button id="saveReport" class="secondary">保存到知识库</button>
+</div>
+<section class="section">
+<h2>记录覆盖范围</h2>
+<p id="reportCoverage" class="muted">分享只记录插件观察到的分享入口点击，不代表分享成功或完整转发历史。观看记录不等于学习完成。</p>
+</section>
+</section>
+    <section data-page="settings" hidden>
+<header class="page-heading">
+<div>
+<p class="eyebrow">设置</p>
+<h1>连接模型，也管理去向。</h1>
+<p class="muted">模型、自动任务、知识库与本地数据在这里统一管理。</p>
+</div>
+</header>
+      <form id="settingsForm">
+<section class="settings-section">
+<h2>模型连接</h2>
+<div class="form-grid">
+<div>
+<label for="provider">服务商</label>
+<select id="provider">
+<option value="deepseek">DeepSeek</option>
+<option value="openai">OpenAI / GPT</option>
+<option value="google">Google / Gemini</option>
+<option value="xai">xAI / Grok</option>
+<option value="minimax">MiniMax</option>
+<option value="zhipu">智谱 / GLM</option>
+<option value="anthropic">Anthropic / Claude</option>
+<option value="custom">自定义网关</option>
+</select>
+</div>
+<div>
+<label for="protocol">连接方式</label>
+<select id="protocol">
+<option value="openai">OpenAI Chat Completions</option>
+<option value="gemini">Gemini 原生</option>
+<option value="anthropic">Claude 原生</option>
+</select>
+</div>
+</div>
+<label for="baseUrl">服务地址</label>
+<input id="baseUrl" type="url" required autocomplete="off" spellcheck="false">
+<label for="apiKey">访问密钥</label>
+<input id="apiKey" type="password" autocomplete="off" spellcheck="false">
+<div class="row spread">
+<label for="model">使用模型</label>
+<button id="loadModels" class="quiet" type="button">加载可用模型</button>
+</div>
+<select id="model" required disabled>
+<option value="">请先加载模型</option>
+</select>
+<p id="modelStatus" class="muted" role="status">
+</p>
+<p class="privacy">密钥保存在本浏览器中。使用 AI 时，相关字幕或记录会发送给你选择的模型服务。</p>
+</section>
+      <section class="settings-section">
+<h2>自动任务</h2>
+<label class="check">
+<input id="autoCollect" type="checkbox">
+<span>自动整理所选收藏夹中的视频</span>
+</label>
+<p class="muted compact">会调用模型并产生服务费用。每次最多处理指定数量的视频；浏览器运行且 B 站已登录时检查更新。收藏中的多分 P 视频先整理第一 P。</p>
+<div class="form-grid">
+<div>
+<label for="batchLimit">每次最多整理</label>
+<input id="batchLimit" type="number" min="1" max="50" value="5">
+</div>
+<div>
+<label for="timezone">报告时区</label>
+<select id="timezone">
+<option value="Asia/Shanghai">北京时间</option>
+<option value="UTC">协调世界时</option>
+<option value="America/Los_Angeles">洛杉矶时间</option>
+<option value="Europe/London">伦敦时间</option>
+</select>
+</div>
+</div>
+<label class="check">
+<input id="autoReports" type="checkbox">
+<span>自动生成日报和每周日的周报</span>
+</label>
+<label for="dailyHour">每天生成时间</label>
+<select id="dailyHour">
+</select>
+<p class="muted compact">浏览器关闭时不会执行，重新打开后补做当天到期的报告。</p>
+</section>
+<div class="sticky-actions">
+<button class="primary" type="submit">保存设置</button>
+<span id="saveStatus" role="status">
+</span>
+</div>
+</form>
+<section class="settings-section">
+<h2>知识库</h2>
+<p id="vaultStatus">尚未连接知识库。</p>
+<div class="actions">
+<button id="connectVault" class="primary" type="button">选择知识库文件夹</button>
+<button id="disconnectVault" class="quiet" type="button" disabled>断开连接</button>
+</div>
+<p class="muted">资料保存在所选文件夹内的 Bili Study 目录。每次保存新增一份快照，保留你已编辑的文件。</p>
+<details>
+<summary>待保存资料</summary>
+<div id="vaultDocuments" class="empty">还没有可保存的资料。</div>
+</details>
+</section>
+      <details class="settings-section">
+<summary>本地资料管理</summary>
+<p>清除插件中的视频、对话、报告和账号关联，同时关闭自动整理。模型连接保留，知识库中的文件保留。</p>
+<button id="resetData" class="danger">清除本插件资料</button>
+</details>
+    </section>
+  </main>
+</div>
+<script type="module" src="src/ui.js">
+</script>
+</body>
+</html>

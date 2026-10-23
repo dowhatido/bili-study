@@ -1,4 +1,4 @@
-import { timeLabel, targetLanguage } from "./learning.js";
+import { timeLabel } from "./learning.js";
 
 export function safeFilename(value) {
   const clean = String(value || "未命名").normalize("NFKC").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "")
@@ -21,11 +21,8 @@ function sourceUrl(video, start) {
 function frontmatter(type, data) {
   return ["---", `type: ${type}`, ...Object.entries(data).map(([k, v]) => `${k}: ${yaml(v)}`), "---", ""].join("\n");
 }
-export function videoMarkdown(video, { bilingual = false } = {}) {
+export function videoMarkdown(video) {
   if (!video) throw new Error("请先选择视频。");
-  if (bilingual && (!video.segments?.length || video.segments.some(s => !video.translations?.[s.id]?.trim()) || video.translationTarget !== targetLanguage(video.language))) {
-    throw new Error("双语字幕尚未完整，请先完成翻译再保存。");
-  }
   const partTitle = video.partTitle && video.partTitle !== video.title && !/^(?:lv_0_|Camera_xhs_)/.test(video.partTitle)
     ? ` · ${video.partTitle}` : "";
   const title = `${video.title}${partTitle}`;
@@ -34,9 +31,8 @@ export function videoMarkdown(video, { bilingual = false } = {}) {
   `# ${heading(title)}`, "", `- UP 主：${safeContent(video.author || "未知")}`, `- 来源：[打开视频](${sourceUrl(video)})`, "",
   "## 视频摘要", "", safeContent(video.summary || "尚未生成摘要。"), "", "## 个人笔记", "",
   ...(video.notes || []).map(n => `- [${timeLabel(n.start)}](${sourceUrl(video, n.start)}) ${safeContent(n.text)}`), "",
-  bilingual ? "## 双语字幕" : "## 原文字幕", "",
-  ...(video.segments || []).flatMap(s => [`### [${timeLabel(s.start)}](${sourceUrl(video, s.start)})`, "", `**原文**\n\n${safeContent(s.text)}`, "",
-    ...(bilingual ? [`**${video.translationTarget === "en" ? "英文" : "中文"}**\n\n${safeContent(video.translations[s.id])}`, ""] : [])]),
+  "## 字幕", "",
+  ...(video.segments || []).flatMap(s => [`### [${timeLabel(s.start)}](${sourceUrl(video, s.start)})`, "", safeContent(s.text), ""]),
   "---", "AI 生成内容请结合视频核对。", ""].join("\n");
   return { filename: `${safeFilename(title)}-${video.bvid}-${video.cid}.md`, text, category: "视频资料" };
 }

@@ -1,6 +1,6 @@
 {
   "name": "bili-study",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "B 站视频学习、收藏整理、对话和本地知识沉淀扩展",

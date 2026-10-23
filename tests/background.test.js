@@ -173,29 +173,13 @@ test('runtime integration: permissions, queue, interrupted requests, cancellatio
     assert.deepEqual(recoveredRanges.sort(), ['0:20-0:39', '0:40-0:59']);
     assert.equal(data.videos[key].summaryParts, 3);
   });
-  await t.test('translation batches use bounded parallel model calls', async () => {
+  await t.test('translation jobs are rejected and legacy queued jobs are cancelled', async () => {
     reset();
-    data.videos[key].segments = Array.from({ length: 25 }, (_, index) => ({
-      id: `g${index}`, start: index, end: index + 1, text: `原文${index}`,
-    }));
-    let active = 0, maxActive = 0;
-    responder = async (_url, init) => {
-      const prompt = JSON.parse(init.body).messages.at(-1).content;
-      const rows = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
-      active += 1;
-      maxActive = Math.max(maxActive, active);
-      await new Promise(resolve => setTimeout(resolve, 15));
-      active -= 1;
-      return new Response(JSON.stringify({
-        choices: [{ message: {
-          content: JSON.stringify({ segments: rows.map(row => ({ id: row.id, text: `译${row.text}` })) }),
-        }, finish_reason: 'stop' }],
-      }), { headers: { 'content-type': 'application/json' } });
-    };
-    const { jobId } = await dispatch({ type: 'enqueue', jobType: 'translate', key, data: { target: 'en' } }, sender);
-    await until(() => ['done', 'failed'].includes(data.jobs[jobId]?.status));
-    assert.equal(data.jobs[jobId]?.status, 'done', data.jobs[jobId]?.error);
-    assert.equal(maxActive, 2);
-    assert.equal(Object.keys(data.videos[key].translations).length, 25);
+    await assert.rejects(dispatch({ type: 'enqueue', jobType: 'translate', key, data: { target: 'en' } }, sender), /翻译功能已移除/);
+    data.jobs.legacy = { id: 'legacy', type: 'translate', key, data: {}, status: 'queued', createdAt: 1 };
+    await drain();
+    assert.equal(data.jobs.legacy.status, 'cancelled');
+    assert.equal(data.jobs.legacy.progress, '翻译功能已移除');
+    assert.equal(fetchCalls, 0);
   });
 });

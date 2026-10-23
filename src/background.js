@@ -1,7 +1,7 @@
 import { PROVIDERS, normalizeGateway, listModels, complete, completeLong, getPermissionOrigin } from "./gateway.js";
 import { createBilibiliClient, parseVideoUrl, videoKey } from "./bilibili.js";
 import { readState, changeState, publicState, normalizeSettings, addAudit } from "./store.js";
-import { groupSegments, splitBatches, targetLanguage, parseJson, alignTranslations, GROUNDED_SYSTEM, sourceText, rankSegments, validateCitations, reportEvidence, dateKey, eventTime, timeLabel } from "./learning.js";
+import { groupSegments, splitBatches, parseJson, GROUNDED_SYSTEM, sourceText, rankSegments, validateCitations, reportEvidence, dateKey, eventTime, timeLabel } from "./learning.js";
 import { videoMarkdown, collectionMarkdown } from "./markdown.js";
 import { vaultHandle, writeSnapshot } from "./vault.js";
 import { assembleClassNotes } from "./notes.js";
@@ -11,7 +11,6 @@ const controllers = new Map();
 const inFlight = new Map();
 const modelLists = new Map();
 const SUMMARY_BATCH_CONCURRENCY = 2;
-const TRANSLATION_BATCH_CONCURRENCY = 2;
 const discoveryKey = config => JSON.stringify([config.provider, config.protocol, config.baseUrl, config.apiKey]);
 function parseSpaceMid(value) {
   const raw = String(value || "").trim();
@@ -130,16 +129,17 @@ async function loadVideo(info, tabId) {
   const segments = groupSegments(transcript.segments);
   if (!segments.length) throw new Error("该视频暂无可获取字幕；如有 CC 字幕，请开启后重新读取。");
   const row = { ...existing, ...video, language: transcript.language || "", subtitleSource: transcript.source,
-    segments, translations: {}, notes: existing?.notes || [], updatedAt: Date.now() };
+    segments, notes: existing?.notes || [], updatedAt: Date.now() };
   await changeState(s => { if (s.epoch !== epoch) throw new Error("资料已清除，请重新读取。"); s.videos[row.key] = row; addAudit(s, "读取视频字幕"); });
   return row;
 }
 
 async function enqueue(type, key, data = {}) {
   const id = await changeState(s => {
+    if (type === "translate") throw new Error("翻译功能已移除。");
     if (data.automatic && !(type === "report" ? s.settings.autoReports : s.settings.autoCollect)) return null;
     const existing = Object.values(s.jobs).find(j => j.type === type && j.key === key && ["queued", "running"].includes(j.status));
-    if (existing) { if (type === "translate" && existing.data.target !== data.target) throw new Error("请等待当前翻译完成，或先取消任务。"); return existing.id; }
+    if (existing) return existing.id;
     const id = crypto.randomUUID(); s.jobs[id] = { id, type, key, data, status: "queued", createdAt: Date.now(), updatedAt: Date.now(), progress: "等待处理" };
     return id;
   });
@@ -252,32 +252,6 @@ async function doJob(job, signal) {
     throw new Error("处理期间模型已切换，请重新发起任务。");
   }
   await updateJob(job.id, { configSignature: signature }, job.runId);
-  if (job.type === "translate") {
-    const target = job.data.target || targetLanguage(video.language);
-    const translations = video.translationTarget === target ? { ...video.translations } : {};
-    const remaining = video.segments.filter(x => !translations[x.id]);
-    if (!remaining.length) return { status: "done", progress: "双语字幕已完成" };
-    const batches = splitBatches(remaining).slice(0, TRANSLATION_BATCH_CONCURRENCY);
-    const doneBefore = video.segments.length - remaining.length;
-    await updateJob(job.id, { progress: `正在翻译 ${doneBefore}/${video.segments.length} 段` }, job.runId);
-    await boundedParallel(batches, TRANSLATION_BATCH_CONCURRENCY, async (batch) => {
-      const result = await jobAi([{ role: "system", content: GROUNDED_SYSTEM }, { role: "user", content:
-        `将字幕逐段翻译为${target === "en" ? "自然英文" : "简体中文"}，忠实保留信息。只返回JSON：{"segments":[{"id":"原ID","text":"译文"}]}，每个ID恰好一次。\n${JSON.stringify(batch.map(({ id, text }) => ({ id, text })))}` }]);
-      const aligned = alignTranslations(batch, parseJson(result.text));
-      await changeState(s => {
-        const current = s.videos[video.key];
-        if (!canCommit(s) || !current) return;
-        const merged = current.translationTarget === target ? { ...current.translations, ...aligned } : aligned;
-        Object.assign(current, { translations: merged, translationTarget: target, translationModel: result.model, updatedAt: Date.now() });
-        const count = Object.keys(merged).length;
-        const currentJob = s.jobs[job.id];
-        if (currentJob) currentJob.progress = `已翻译 ${count}/${video.segments.length} 段`;
-      });
-    });
-    const latest = (await readState()).videos[video.key];
-    const count = latest?.translationTarget === target ? Object.keys(latest.translations || {}).length : 0;
-    return { status: count >= video.segments.length ? "done" : "queued", progress: `已翻译 ${count}/${video.segments.length} 段` };
-  }
   if (job.type === "summary") {
     // Small models have limited output per response. Keep the detailed batches,
     // but process a bounded wave in parallel so latency is no longer the sum of
@@ -380,6 +354,10 @@ async function drain() {
       const state = await readState();
       const job = Object.values(state.jobs).filter(j => j.status === "queued").sort((a,b) => a.createdAt - b.createdAt)[0];
       if (!job) break;
+      if (job.type === "translate") {
+        await updateJob(job.id, { status: "cancelled", progress: "翻译功能已移除" });
+        continue;
+      }
       if (job.data?.automatic && !(job.type === "report" ? state.settings.autoReports : state.settings.autoCollect)) { await updateJob(job.id, { status: "cancelled", progress: "自动整理已关闭" }); continue; }
       const controller = new AbortController(); controllers.set(job.id, controller);
       job.runId = crypto.randomUUID();
@@ -535,7 +513,8 @@ async function dispatch(message, sender) {
     }
     case "loadVideo": return loadVideo(message.video, message.tabId);
     case "enqueue": {
-      if (!["summary", "translate"].includes(message.jobType)) throw new Error("任务类型不受支持。");
+      if (message.jobType === "translate") throw new Error("翻译功能已移除。");
+      if (message.jobType !== "summary") throw new Error("任务类型不受支持。");
       if (!(await readState()).videos[message.key]) throw new Error("请先读取视频。");
       await gateway(); return enqueue(message.jobType, message.key, message.data || {});
     }

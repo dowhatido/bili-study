@@ -657,19 +657,7 @@ details textarea { margin-top: var(--s3); }
   color: var(--muted);
 }
 .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(29, 39, 33, 0.08); }
-#exportBilingual { min-height: 44px; padding: 0 var(--s3); font-size: 12.5px; }
-.translation-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin: 0 0 var(--s1);
-  padding: 0 0 var(--s3);
-  border-bottom: 1px solid var(--line);
-  font-size: 12.5px;
-}
-.translation-label { color: var(--muted); white-space: nowrap; }
-.translation-actions select { width: auto; flex: 0 0 auto; min-height: 44px; height: 44px; max-width: 96px; font-size: 13px; }
-.translation-actions button { min-height: 44px; padding: 0 var(--s3); font-size: 12.5px; }
+#exportVideo { min-height: 44px; padding: 0 var(--s3); font-size: 12.5px; }
 .transcript-row {
   padding: 14px 0;
   display: grid;
@@ -694,13 +682,6 @@ details textarea { margin-top: var(--s3); }
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
-.translation {
-  margin-top: var(--s2) !important;
-  padding-left: 10px;
-  border-left: 2px solid var(--accent-soft);
-  color: var(--ink-2);
-}
-
 .panel-view h2 { font-size: 15px; margin: 0; }
 .panel-view > .row { margin-bottom: var(--s4); }
 .panel-view > .prose { margin: var(--s4) 0; }
@@ -806,7 +787,6 @@ details textarea { margin-top: var(--s3); }
 /* Reading modes: one page, four ways to read */
 .summary-block { display: none; }
 body[data-readmode="summary"] .summary-block { display: block; }
-body[data-readmode="summary"] .translation-actions,
 body[data-readmode="summary"] #transcriptRows { display: none; }
 
 /* Motion audit: only state changes, never content in motion. */

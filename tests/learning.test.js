@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizedSegments, groupSegments, timeLabel, targetLanguage, parseJson,
-  sourceText, splitBatches, alignTranslations, rankSegments, validateCitations,
+  normalizedSegments, groupSegments, timeLabel, parseJson,
+  sourceText, splitBatches, rankSegments, validateCitations,
   dateKey, reportWindow, eventTime, reportEvidence, GROUNDED_SYSTEM,
 } from '../src/learning.js';
 
@@ -135,12 +135,7 @@ test('time labels are seconds, preserve minute overflow and floor fractions', ()
   assert.equal(sourceText({}), '');
 });
 
-test('Chinese human/AI tracks translate to English; English tracks translate to Chinese', () => {
-  for (const language of ['zh', 'zh-Hans', 'zh-CN', 'ai-zh', 'AI-ZH', 'cmn', 'yue']) assert.equal(targetLanguage(language), 'en');
-  for (const language of ['en', 'en-US', 'ai-en', 'und', '', undefined]) assert.equal(targetLanguage(language), 'zh-CN');
-});
-
-test('translation batches preserve every source ID and enforce the 12-segment boundary', () => {
+test('summary batches preserve source order and enforce the 12-segment boundary', () => {
   const segments = Array.from({ length: 25 }, (_, i) => segment(`g${i}`, `原文${i}`));
   const batches = splitBatches(segments);
   assert.deepEqual(batches.map((batch) => batch.length), [12, 12, 1]);
@@ -148,37 +143,6 @@ test('translation batches preserve every source ID and enforce the 12-segment bo
   assert.deepEqual(splitBatches([], 10), []);
   assert.deepEqual(splitBatches([segment('g0', '12345'), segment('g1', '67890')], 9).map((b) => b.length), [1, 1]);
   assert.equal(splitBatches([segment('g0', 'x'.repeat(20))], 10)[0][0].text.length, 20);
-});
-
-test('translation alignment accepts reordered unique IDs and preserves every source ID exactly once', () => {
-  const segments = [segment('g0', '原文零'), segment('g1', '原文一'), segment('g2', '原文二')];
-  const before = structuredClone(segments);
-  const payload = { segments: [{ id: 'g2', text: ' Two ' },
-    { id: 'g0', text: 'Zero' }, { id: 'g1', text: 'One' }] };
-  const payloadBefore = structuredClone(payload);
-  assert.deepEqual(alignTranslations(segments, payload), { g0: 'Zero', g1: 'One', g2: 'Two' });
-  assert.deepEqual(segments, before);
-  assert.deepEqual(payload, payloadBefore);
-});
-
-for (const [label, extra] of [
-  ['duplicate ID', { id: 'g0', text: 'Duplicate' }],
-  ['unknown ID', { id: 'unknown', text: 'Unrelated' }],
-]) test(`translation rejects ${label} even when all expected IDs are present`, () => {
-  const segments = [segment('g0', '原文零'), segment('g1', '原文一')];
-  const payload = { segments: [{ id: 'g1', text: 'One' }, { id: 'g0', text: 'Zero' }, extra] };
-  const before = structuredClone({ segments, payload });
-  assert.throws(() => alignTranslations(segments, payload), /重复|对应关系/);
-  assert.deepEqual({ segments, payload }, before);
-});
-
-for (const payload of [undefined, {}, { segments: {} }, { segments: [] },
-  { segments: [{ id: 'g0', text: 'First' }] },
-  { segments: [{ id: 'g0', text: 'First' }, { id: 'other', text: 'Second' }] },
-  { segments: [{ id: 'g0', text: 'First' }, { id: 'g1', text: '  ' }] },
-  { segments: [{ id: 'g0', text: 'First' }, { id: 'g1', text: 42 }] },
-]) test(`translation rejects incomplete or invalid ID coverage: ${JSON.stringify(payload)}`, () => {
-  assert.throws(() => alignTranslations([segment('g0', '甲'), segment('g1', '乙')], payload), /翻译|段落/);
 });
 
 test('JSON parsing accepts fenced model output and gives a Chinese error for invalid JSON', () => {

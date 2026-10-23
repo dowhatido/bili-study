@@ -10,7 +10,7 @@ function video(extra = {}) {
     notes: [{ id: 'n1', start: 12.9, text: '个人笔记一' }, { id: 'n2', start: 61, text: '个人笔记二' }],
     segments: [{ id: 'g0', start: 0, end: 2, text: '第一句中文。' },
       { id: 'g1', start: 61.8, end: 63, text: '第二句中文。' }, { id: 'g2', start: 125, end: 130, text: '最后一句中文。' }],
-    translationTarget: 'en', translations: { g0: 'First sentence.', g1: 'Second sentence.', g2: 'Last sentence.' }, ...extra };
+    ...extra };
 }
 
 function metadata(markdown) {
@@ -41,8 +41,7 @@ test('video export has Chinese filename/category, part identity and complete met
   assert.match(result.text, /# 机器学习：入门 · 第二课\n/);
   assert.ok(result.text.includes(source.summary));
   assert.match(result.text, /UP 主：中文老师/);
-  assert.match(result.text, /## 原文字幕/);
-  assert.equal(result.text.includes('**英文**'), false);
+  assert.match(result.text, /## 字幕/);
   for (const s of source.segments) assert.ok(result.text.includes(s.text));
   assert.deepEqual(source, before);
 });
@@ -64,44 +63,8 @@ test('notes and caption links preserve P2 and seek seconds, never milliseconds',
   assert.equal(result.text.includes('t=61800'), false);
 });
 
-test('complete Chinese-to-English export includes every original and translation in source order', () => {
-  const source = video();
-  const result = videoMarkdown(source, { bilingual: true });
-  assert.match(result.text, /## 双语字幕/);
-  assert.equal((result.text.match(/\*\*原文\*\*/g) || []).length, 3);
-  assert.equal((result.text.match(/\*\*英文\*\*/g) || []).length, 3);
-  let position = -1;
-  for (const s of source.segments) {
-    const original = result.text.indexOf(s.text);
-    const translated = result.text.indexOf(source.translations[s.id]);
-    assert.ok(original > position && translated > original);
-    position = translated;
-  }
-});
-
-test('English-to-Chinese export labels the translated side Chinese and preserves English originals', () => {
-  const source = video({ language: 'en', translationTarget: 'zh-CN', segments: [
-    { id: 'g0', start: 0, end: 1, text: 'Do not infer mastery.' },
-  ], translations: { g0: '不能据此推断已经掌握。' } });
-  const result = videoMarkdown(source, { bilingual: true });
-  assert.ok(result.text.includes('**原文**\n\nDo not infer mastery.'));
-  assert.ok(result.text.includes('**中文**\n\n不能据此推断已经掌握。'));
-});
-
-for (const extra of [
-  { segments: [] }, { segments: undefined }, { translations: {} }, { translations: undefined },
-  { translations: { g0: 'First.', g1: 'Second.' } },
-  { translations: { g0: 'First.', g1: '  ', g2: 'Last.' } },
-  { translations: { g0: 'First.', g1: 'Second.', unrelated: 'Not the final segment.' } },
-]) test(`bilingual export refuses missing source or translation IDs: ${JSON.stringify(extra)}`, () => {
-  const source = video(extra);
-  const before = structuredClone(source);
-  assert.throws(() => videoMarkdown(source, { bilingual: true }), /双语字幕尚未完整/);
-  assert.deepEqual(source, before);
-});
-
-test('original export remains available without translations and avoids duplicate part titles', () => {
-  const result = videoMarkdown(video({ partTitle: '机器学习：入门', translations: {} }));
+test('subtitle export remains available without translation state and avoids duplicate part titles', () => {
+  const result = videoMarkdown(video({ partTitle: '机器学习：入门' }));
   assert.equal(result.filename, `机器学习入门-${BV}-67890.md`);
   assert.equal(result.text.includes('机器学习：入门 · 机器学习：入门'), false);
   assert.ok(result.text.includes('最后一句中文。'));

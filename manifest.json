@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bili Study · 哔哩学习札记",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "阅读双语字幕，围绕视频提问，整理收藏与学习报告，保存到本地知识库。",
   "minimum_chrome_version": "116",
   "permissions": ["sidePanel", "storage", "scripting", "activeTab", "alarms"],

@@ -22,7 +22,8 @@ test("the side panel is scoped to the current video", async () => {
   assert.doesNotMatch(html, /class="panel-footer"/);
   assert.doesNotMatch(html, /data-open=/);
   assert.match(html, /<a class="workspace-entry"[^>]*>打开工作台<\/a>/);
-  assert.match(html, /<div id="translationActions" class="translation-actions" hidden>/);
+  assert.doesNotMatch(html, /translationActions|data-mode="translated"|data-mode="bilingual"|id="translate"/);
+  assert.match(html, /<button data-mode="subtitles"[^>]*>字幕<\/button>/);
   assert.match(html, /data-panel="transcript"[^>]*>学习<\/button>/);
 });
 

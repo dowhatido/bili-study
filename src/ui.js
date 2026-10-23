@@ -1,6 +1,6 @@
 import { PROVIDERS, normalizeGateway, getPermissionOrigin } from "./gateway.js";
 import { emptyState } from "./store.js";
-import { timeLabel, targetLanguage } from "./learning.js";
+import { timeLabel } from "./learning.js";
 import { videoMarkdown, conversationMarkdown, reportMarkdown, downloadMarkdown } from "./markdown.js";
 import { connectVault, disconnectVault, vaultHandle, saveToVault } from "./vault.js";
 import { element, renderProse } from "./prose.js";
@@ -9,8 +9,8 @@ import { flushVaultQueue } from "./vault-queue.js";
 const $ = id => document.getElementById(id);
 const panel = document.body.dataset.surface === "panel";
 const extension = Boolean(globalThis.chrome?.runtime?.id);
-let state = emptyState(), selectedKey = "", mode = "original", currentReport = "", modelGeneration = 0;
-let pendingExport = null, initialSettings = true, lastConversation = "", lastTranscriptSignature = "";
+let state = emptyState(), selectedKey = "", mode = "subtitles", currentReport = "", modelGeneration = 0;
+let initialSettings = true, lastConversation = "", lastTranscriptSignature = "";
 let busyCount = 0;
 let lastState = "";
 let lastGatewayOrigin = "";
@@ -120,9 +120,10 @@ function linkCitations(node, segments) {
 }
 function renderJobs(container, jobs) {
   if (!container) return;
+  jobs = jobs.filter(job => job.type !== "translate");
   container.replaceChildren();
   if (!jobs.length) { container.append(element("p", "暂无处理任务。", "muted")); return; }
-  const names = { summary: "精读", translate: "双语翻译", report: "学习回顾", collection: "作品汇总" };
+  const names = { summary: "精读", report: "学习回顾", collection: "作品汇总" };
   const statuses = { queued: "排队中", running: "处理中", done: "已完成", failed: "需要重试", cancelled: "已取消", unknown: "处理已中断" };
   const summaryJobs = jobs.filter(j => j.type === "summary");
   const doneCount = summaryJobs.filter(j => j.status === "done").length;
@@ -147,7 +148,7 @@ function renderJobs(container, jobs) {
 }
 
 function unfinishedJobs() {
-  return Object.values(state.jobs || {}).filter(job => ["queued", "running", "failed", "unknown"].includes(job.status));
+  return Object.values(state.jobs || {}).filter(job => job.type !== "translate" && ["queued", "running", "failed", "unknown"].includes(job.status));
 }
 
 function jobsSummary(jobs) {
@@ -208,7 +209,6 @@ function renderPanel() {
       document.body.dataset.readmode = mode;
       document.querySelectorAll("[data-mode]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.mode === "summary")));
       notice("精读已生成，可以直接阅读和编辑。");
-      $("translationActions").hidden = true;
     }
     seenSummaries.set(selectedKey, v.summary);
   }
@@ -223,28 +223,25 @@ function renderPanel() {
   $("readVideo").classList.toggle("primary", !v);
   $("readVideo").classList.toggle("quiet", Boolean(v));
   $("summarize").textContent = v?.summary ? "重新生成精读" : "生成精读";
-  for (const id of ["translate", "summarize", "exportBilingual", "saveVideo"]) $(id).disabled = !v;
-  $("translationActions").hidden = !v || !["translated", "bilingual"].includes(mode);
+  for (const id of ["summarize", "exportVideo", "saveVideo"]) $(id).disabled = !v;
   // Jobs belong to the queue, not to the currently selected video.
   const activeJobs = unfinishedJobs();
   if (!v) {
-    lastTranscriptSignature = ""; lastConversation = ""; pendingExport = null;
+    lastTranscriptSignature = ""; lastConversation = "";
     $("transcriptRows").replaceChildren(element("p", "读取视频字幕后开始学习。"));
     $("summaryText").textContent = "读完字幕后，把重点整理成一篇课堂精读。"; $("summaryDraft").value = "";
     $("summaryHistory").replaceChildren(); $("chatMessages").replaceChildren(); $("discussionSummary").value = ""; $("notesList").replaceChildren();
     renderPanelQueue(activeJobs);
     return;
   }
-  $("target").value = targetLanguage(v.language); $("target").disabled = true;
   renderPanelQueue(activeJobs);
-  const signature = `${selectedKey}:${mode}:${Object.keys(v.translations || {}).length}:${v.segments?.length}:${v.translationTarget}`;
+  const signature = `${selectedKey}:${mode}:${v.segments?.length}`;
   if (signature !== lastTranscriptSignature) {
     lastTranscriptSignature = signature; $("transcriptRows").replaceChildren(); $("transcriptRows").classList.remove("empty");
     for (const s of v.segments || []) {
       const row = element("div", undefined, "transcript-row");
       row.append(button(timeLabel(s.start), () => rpc("seek", { key: v.key, start: s.start }), "timestamp"));
-      const content = element("div"); if (mode !== "translated") content.append(element("p", s.text));
-      if (mode !== "original") content.append(element("p", v.translations?.[s.id] || "这一段还没有译文。", "translation"));
+      const content = element("div"); content.append(element("p", s.text));
       row.append(content); $("transcriptRows").append(row);
     }
   }
@@ -261,13 +258,6 @@ function renderPanel() {
   }
   $("summaryText").classList.toggle("empty", !v.summary);
   renderChat(); renderNotes();
-  if (pendingExport?.key === v.key && pendingExport.jobId) {
-    const job = state.jobs[pendingExport.jobId];
-    if (job?.status === "done") {
-      try { downloadMarkdown(videoMarkdown(v, { bilingual: true })); notice("双语 Markdown 已导出。"); } catch(e) { notice(e.message, true); }
-      pendingExport = null;
-    } else if (["failed", "cancelled", "unknown"].includes(job?.status)) { pendingExport = null; notice("翻译未完成，未导出不完整文件。请处理失败任务后重试。", true); }
-  }
 }
 function renderChat() {
   const conversation = state.conversations[selectedKey];
@@ -499,7 +489,7 @@ async function renderVault() {
   for (const v of Object.values(state.videos)) {
     const row = element("article", undefined, "item"); row.append(element("h3", v.title));
     const actions = element("div", undefined, "actions");
-    actions.append(button("保存原文与精读到知识库", () => saveDocument(videoMarkdown(v))), button("保存双语资料到知识库", () => saveDocument(videoMarkdown(v, { bilingual: true }))));
+    actions.append(button("保存字幕与精读到知识库", () => saveDocument(videoMarkdown(v))));
     const conversation = state.conversations[v.key];
     if (conversation?.messages?.length) actions.append(button("保存完整对话到知识库", () => saveDocument(conversationMarkdown(v, conversation))));
     row.append(actions); container.append(row);
@@ -547,22 +537,18 @@ function route() {
 
 if (panel) {
   document.querySelectorAll("[data-panel]").forEach(b => b.onclick = () => selectPanel(b.dataset.panel));
-  listen("readVideo", async () => { const v = await rpc("currentVideo"); selectedKey = v.key; $("target").value = targetLanguage(v.language); lastTranscriptSignature = ""; notice("字幕已读取，可以开始提问。"); }, "正在读取…");
-  $("videoPicker").onchange = () => { selectedKey = $("videoPicker").value; $("target").value = targetLanguage(video()?.language); renderPanel(); };
+  listen("readVideo", async () => { const v = await rpc("currentVideo"); selectedKey = v.key; lastTranscriptSignature = ""; notice("字幕已读取，可以开始提问。"); }, "正在读取…");
+  $("videoPicker").onchange = () => { selectedKey = $("videoPicker").value; renderPanel(); };
   document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
     mode = b.dataset.mode; document.body.dataset.readmode = mode;
     document.querySelectorAll("[data-mode]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderPanel();
   });
-  listen("translate", async () => { await rpc("enqueue", { jobType: "translate", key: selectedKey, data: { target: $("target").value } }); notice("翻译任务已加入处理队列。"); });
   listen("summarize", async () => { await rpc("enqueue", { jobType: "summary", key: selectedKey }); notice("正在分段精读并整理视频。"); });
-  listen("exportBilingual", async () => {
+  listen("exportVideo", async () => {
     const v = video(); if (!v) throw new Error("请先读取视频字幕。");
-    if (v.translationTarget !== targetLanguage(v.language) || v.segments.some(s => !v.translations?.[s.id])) {
-      const result = await rpc("enqueue", { jobType: "translate", key: v.key, data: { target: $("target").value } });
-      pendingExport = { key: v.key, jobId: result.jobId }; notice("正在补齐译文，完成后会导出双语 Markdown。请保持侧边栏打开。");
-    } else { downloadMarkdown(videoMarkdown(v, { bilingual: true })); notice("双语 Markdown 已导出。"); }
+    downloadMarkdown(videoMarkdown(v)); notice("Markdown 已导出。");
   });
-  listen("saveVideo", () => saveDocument(videoMarkdown(video(), { bilingual: true })));
+  listen("saveVideo", () => saveDocument(videoMarkdown(video())));
   listen("saveSummaryDraft", async () => { await rpc("saveVideoSummary", { key: selectedKey, text: $("summaryDraft").value }); notice("精读编辑已保存到插件本地。"); });
   $("chatForm").onsubmit = event => {
     event.preventDefault(); const key = selectedKey, question = $("question").value.trim();
